@@ -1,31 +1,36 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+library MathLib {
+    function calculateBonus(uint256 _amount, uint256 _percentage) internal pure returns (uint256) {
+        return (_amount * _percentage) / 100;
+    }
 
-contract ShiliuProfessionalVault is Ownable {
+    function exists(address[] storage _array, address _target) internal view returns (bool) {
+        for (uint256 i = 0; i < _array.length; i++) {
+            if (_array[i] == _target) return true;
+        }
+        return false;
+    }
+}
+
+contract BonusVault {
+    using MathLib for uint256;
+    using MathLib for address[];
+
     mapping(address => uint256) public balances;
-
-    event Deposit(address indexed user, uint256 amount);
-    event EmergencyWithdraw(uint256 amount);
-
-    constructor() Ownable(msg.sender) {}
+    address[] public members;
 
     function deposit() public payable {
-        require(msg.value > 0, "No ETH sent");
+        if (!members.exists(msg.sender)) {
+            members.push(msg.sender);
+        }
         balances[msg.sender] += msg.value;
-        emit Deposit(msg.sender, msg.value);
     }
 
-    function withdraw(uint256 _amount) public {
-        require(balances[msg.sender] >= _amount, "Insufficient balance");
-        
-        balances[msg.sender] -= _amount;
-        (bool success, ) = payable(msg.sender).call{value: _amount}("");
-        require(success, "Transfer failed");
-    }
-
-    function getVaultTotal() public view onlyOwner returns (uint256) {
-        return address(this).balance;
+    function getBalanceWithBonus(address _user, uint256 _bonusPercent) public view returns (uint256) {
+        uint256 currentBalance = balances[_user];
+        uint256 bonus = currentBalance.calculateBonus(_bonusPercent);
+        return currentBalance + bonus;
     }
 }
